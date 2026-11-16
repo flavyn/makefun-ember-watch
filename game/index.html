@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ember Watch</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --ink: #e8f1f7;
+    --dim: #93a9ba;
+    --amber: #ffb24a;
+    --amber-soft: #ffd9a0;
+    --panel: rgba(6, 14, 22, 0.82);
+    --line: rgba(255, 178, 74, 0.34);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #05090f;
+    color: var(--ink);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+  #game { display: block; width: 100vw; height: 100vh; }
+  #hud { position: fixed; inset: 0; pointer-events: none; }
+  #hud-left { position: absolute; left: 26px; top: 24px; width: 250px; }
+  .row { margin-bottom: 13px; }
+  .row .label {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--dim); margin-bottom: 5px;
+  }
+  .row .label b { font-size: 15px; letter-spacing: 0.04em; color: var(--ink); }
+  .bar {
+    position: relative; height: 8px; border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.06); overflow: hidden;
+  }
+  .bar i {
+    position: absolute; inset: 0; transform-origin: left center; transform: scaleX(1);
+    background: linear-gradient(90deg, #b06a1f, var(--amber));
+    transition: transform 120ms linear;
+  }
+  #heat-fill { background: linear-gradient(90deg, #7a4b1c, #ffe6b8); }
+  #core-fill { background: linear-gradient(90deg, #1f6f6a, #7fe6d2); }
+  #hud-right {
+    position: absolute; right: 26px; top: 24px; text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  #hud-right .stat { margin-bottom: 9px; }
+  #hud-right .stat span {
+    display: block; font-size: 11px; letter-spacing: 0.24em;
+    text-transform: uppercase; color: var(--dim);
+  }
+  #hud-right .stat b { font-size: 26px; font-weight: 600; color: var(--amber-soft); }
+  #banner {
+    position: absolute; left: 50%; top: 15%; transform: translateX(-50%);
+    font-size: 34px; letter-spacing: 0.4em; text-transform: uppercase;
+    color: var(--amber-soft); opacity: 0; transition: opacity 220ms ease;
+    text-shadow: 0 0 26px rgba(255, 178, 74, 0.55);
+  }
+  #crosshair {
+    position: absolute; left: 50%; top: 50%; width: 22px; height: 22px;
+    transform: translate(-50%, -50%); opacity: 0; transition: opacity 160ms;
+  }
+  #crosshair::before, #crosshair::after {
+    content: ""; position: absolute; background: rgba(255, 217, 160, 0.85);
+  }
+  #crosshair::before { left: 50%; top: 0; width: 1px; height: 100%; transform: translateX(-50%); }
+  #crosshair::after { top: 50%; left: 0; height: 1px; width: 100%; transform: translateY(-50%); }
+  #hitmark {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    font-size: 30px; line-height: 1; opacity: 0; transition: opacity 90ms linear;
+    font-weight: 600;
+  }
+  #hint {
+    position: absolute; left: 50%; bottom: 186px; transform: translateX(-50%);
+    font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: #ffd9a0; opacity: 0; transition: opacity 150ms linear;
+  }
+  #hurt {
+    position: absolute; inset: 0; opacity: 0; transition: opacity 90ms linear;
+    background: radial-gradient(circle at 50% 55%, rgba(120, 12, 12, 0) 42%, rgba(140, 16, 16, 0.85) 100%);
+  }
+  .overlay {
+    position: fixed; inset: 0; display: none; flex-direction: column;
+    align-items: center; justify-content: center; gap: 22px; text-align: center;
+    background: radial-gradient(circle at 50% 40%, rgba(46,72,96,0.34), rgba(12,22,32,0.72));
+    backdrop-filter: blur(2px);
+  }
+  .overlay.on { display: flex; }
+  h1 {
+    margin: 0; font-family: Georgia, "Times New Roman", serif;
+    font-size: 92px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--amber-soft); text-shadow: 0 0 46px rgba(255, 178, 74, 0.45);
+  }
+  h2 {
+    margin: 0; font-family: Georgia, serif; font-size: 44px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--amber-soft);
+  }
+  .sub { margin: 0; font-size: 15px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--dim); }
+  .lede { margin: 0; max-width: 620px; font-size: 17px; line-height: 1.65; color: var(--ink); }
+  .keys {
+    display: flex; flex-wrap: wrap; gap: 8px 18px; justify-content: center;
+    max-width: 720px; font-size: 13px; color: var(--dim); letter-spacing: 0.06em;
+  }
+  .keys kbd {
+    display: inline-block; padding: 2px 7px; margin-right: 6px;
+    border: 1px solid var(--line); border-radius: 3px; color: var(--amber-soft);
+    font-family: inherit; font-size: 12px;
+  }
+  .go { font-size: 14px; letter-spacing: 0.34em; text-transform: uppercase; color: var(--amber); }
+  .cards { display: flex; gap: 16px; }
+  .card {
+    width: 218px; padding: 20px 18px 16px; text-align: left;
+    border: 1px solid var(--line); background: var(--panel);
+    display: flex; flex-direction: column; gap: 8px; position: relative;
+  }
+  .card .key {
+    position: absolute; right: 12px; top: 10px; font-size: 12px; color: var(--amber);
+    border: 1px solid var(--line); padding: 1px 6px;
+  }
+  .card h3 { margin: 0; font-size: 17px; letter-spacing: 0.06em; color: var(--amber-soft); }
+  .card p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink); }
+  .card .cost { margin-top: auto; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+  .card .cost.short { color: #ff8f6b; }
+  .salvage-line { font-size: 13px; letter-spacing: 0.26em; text-transform: uppercase; color: var(--dim); }
+  .salvage-line b { color: var(--amber-soft); font-size: 18px; }
+  .stats { display: flex; gap: 34px; }
+  .stats div { text-align: center; }
+  .stats span { display: block; font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--dim); }
+  .stats b { font-size: 32px; font-weight: 600; color: var(--amber-soft); }
+  #end-title.won { color: #8ce8c9; text-shadow: 0 0 40px rgba(126, 230, 210, 0.4); }
+  #end-title.lost { color: #ff9d6b; text-shadow: 0 0 40px rgba(255, 140, 90, 0.35); }
+  #pause h2 { font-size: 34px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="hud-left">
+    <div class="row">
+      <div class="label"><span>Keeper</span><b id="health-text">100</b></div>
+      <div class="bar"><i id="health-fill"></i></div>
+    </div>
+    <div class="row">
+      <div class="label"><span>Beacon</span><b id="core-text">100</b></div>
+      <div class="bar"><i id="core-fill"></i></div>
+    </div>
+    <div class="row">
+      <div class="label"><span>Lance heat</span><b id="heat-text">0</b></div>
+      <div class="bar"><i id="heat-fill"></i></div>
+    </div>
+  </div>
+  <div id="hud-right">
+    <div class="stat"><span>Score</span><b id="score">0</b></div>
+    <div class="stat"><span>Wave</span><b id="wave">1/8</b></div>
+    <div class="stat"><span>Salvage</span><b id="salvage">0</b></div>
+    <div class="stat"><span>Flares</span><b id="flares">3</b></div>
+  </div>
+  <div id="banner"></div>
+  <div id="crosshair"></div>
+  <div id="hitmark">+</div>
+  <div id="hint"></div>
+</div>
+<div id="hurt"></div>
+
+<div id="title" class="overlay on">
+  <p class="sub">a night on the lamp rock</p>
+  <h1>Ember Watch</h1>
+  <p class="lede">Hollow things walk out of the sea and want the beacon dark. You have one ember lance,
+    three flares and until dawn. Hold eight waves and the light holds with you.</p>
+  <div class="keys">
+    <span><kbd>W A S D</kbd>move</span>
+    <span><kbd>mouse</kbd>look</span>
+    <span><kbd>left click</kbd>ember lance</span>
+    <span><kbd>R</kbd>vent the heat</span>
+    <span><kbd>G</kbd>throw a flare</span>
+    <span><kbd>C</kbd>crouch</span>
+    <span><kbd>Esc</kbd>pause</span>
+    <span><kbd>M</kbd>mute</span>
+  </div>
+  <p class="go">press enter to take the watch</p>
+</div>
+
+<div id="upgrade" class="overlay">
+  <p class="salvage-line">salvage on hand <b id="upgrade-salvage">0</b></p>
+  <h2>Dawn is not yet</h2>
+  <div id="upgrade-cards" class="cards"></div>
+  <p class="go">press 1 · 2 · 3 to spend it · 4 to keep saving</p>
+</div>
+
+<div id="end" class="overlay">
+  <h2 id="end-title">The light goes out</h2>
+  <p class="lede" id="end-reason">the keeper fell</p>
+  <div class="stats">
+    <div><span>Score</span><b id="end-score">0</b></div>
+    <div><span>Wave</span><b id="end-wave">0 / 8</b></div>
+    <div><span>Hollows broken</span><b id="end-kills">0</b></div>
+    <div><span>Lance accuracy</span><b id="end-accuracy">0%</b></div>
+  </div>
+  <p class="go">press R to take the watch again</p>
+</div>
+
+<div id="pause" class="overlay">
+  <h2>Paused</h2>
+  <p class="sub">press esc to return to the rock</p>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

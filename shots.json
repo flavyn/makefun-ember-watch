@@ -1,0 +1,11 @@
+{
+  "game": "Ember Watch",
+  "viewport": { "width": 1280, "height": 720 },
+  "quality": 82,
+  "shots": [
+    { "name": "1-start.jpg", "query": "?shot=start&seed=1", "shows": "title screen: the watch, the rules, the controls" },
+    { "name": "2-play.jpg", "query": "?shot=play&seed=1", "shows": "wave five in progress: HUD, a plated warden taking a body hit with the aim hint, Hollows closing" },
+    { "name": "3-upgrade.jpg", "query": "?shot=upgrade&seed=1", "shows": "between waves: salvage, three upgrades, and the option to keep saving" },
+    { "name": "4-end.jpg", "query": "?shot=end&seed=1", "shows": "defeat screen: score, wave, kills, accuracy, restart" }
+  ]
+}
